@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
+            Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"/>
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+        <ProjectGuid>{52CA24E9-D14C-4A65-BD7A-17091EF8D979}</ProjectGuid>
+        <OutputType>Library</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>BveEx.Plugins.D3D9DeviceHacker</RootNamespace>
+        <AssemblyName>BveEx.Plugins.D3D9DeviceHacker</AssemblyName>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="BveTs">
+            <Private>False</Private>
+            <HintPath>D:\Programs\BVE5\BveTs.exe</HintPath>
+        </Reference>
+        <Reference Include="System"/>
+        <Reference Include="System.Core"/>
+        <Reference Include="System.Data"/>
+        <Reference Include="System.Drawing"/>
+        <Reference Include="System.Xml"/>
+        <Reference Include="System.Windows.Forms"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="PluginMain.cs"/>
+        <Compile Include="PluginConfig.cs"/>
+        <Compile Include="PluginLog.cs"/>
+        <Compile Include="Patches\TextureAndMeshPatcher.cs"/>
+        <Compile Include="Patches\DXDynamicTexturePatch.cs"/>
+        <Compile Include="Patches\D9Patch.cs"/>
+        <Compile Include="Properties\AssemblyInfo.cs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="App.config"/>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="BveEx.PluginHost" Version="2.1.0"/>
+        <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.6"/>
+        <PackageReference Include="ObjectiveHarmonyPatch" Version="1.2.0"/>
+        <PackageReference Include="SlimDX" Version="4.0.13.44">
+            <PrivateAssets>all</PrivateAssets>
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </PackageReference>
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Include="README.md" Link="README.md" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+    <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+         Other similar extension points exist, see Microsoft.Common.targets.
+    <Target Name="BeforeBuild">
+    </Target>
+    <Target Name="AfterBuild">
+    </Target>
+    -->
+
+</Project>
