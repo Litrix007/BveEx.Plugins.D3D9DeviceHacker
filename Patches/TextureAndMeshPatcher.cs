@@ -9,9 +9,9 @@ using SlimDX.Direct3D9;
 namespace BveEx.Plugins.D3D9DeviceHacker.Patches
 {
     /// <summary>
-    /// 精准 Patch 托管 SlimDX API：将 Pool.Managed 改写为 Pool.Default，
-    /// 并清除 Mesh 的 Managed 标志位。D3D9Ex 下 DeviceEx 不会进入设备丢失状态，
-    /// Pool.Default 直接驻留显存性能更高。
+    ///     精准 Patch 托管 SlimDX API：将 Pool.Managed 改写为 Pool.Default，
+    ///     并清除 Mesh 的 Managed 标志位。D3D9Ex 下 DeviceEx 不会进入设备丢失状态，
+    ///     Pool.Default 直接驻留显存性能更高。
     /// </summary>
     public static class TextureAndMeshPatcher
     {
@@ -122,9 +122,8 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
         {
             try
             {
-                harmony.Patch(method, prefix: prefix);
-                if (PluginConfig.EnableDebug)
-                    PluginLog.Info($"[D3D9Ex] Harmony 成功: {method.DeclaringType.Name}.{method.Name}");
+                harmony.Patch(method, prefix);
+                PluginLog.Debug($"[D3D9Ex] Harmony 成功: {method.DeclaringType.Name}.{method.Name}");
             }
             catch (Exception ex)
             {
@@ -148,10 +147,8 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
             }
 
             if (TexturePoolIndices.TryGetValue(__originalMethod, out var index))
-            {
                 if (index >= 0 && index < __args.Length && __args[index] is Pool pool && pool == Pool.Managed)
                     __args[index] = Pool.Default;
-            }
 
             return true;
         }
@@ -160,14 +157,12 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
         {
             if (__args == null || __originalMethod == null) return true;
             if (MeshFlagsIndices.TryGetValue(__originalMethod, out var index))
-            {
                 if (index >= 0 && index < __args.Length && __args[index] is MeshFlags flags)
                 {
                     var newFlags = flags & ~MeshFlags.Managed & ~MeshFlags.VertexBufferManaged &
                                    ~MeshFlags.IndexBufferManaged;
                     if (newFlags != flags) __args[index] = newFlags;
                 }
-            }
 
             return true;
         }
@@ -180,7 +175,6 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 typeof(Usage), typeof(Format), typeof(Pool)
             });
             if (texCtor != null)
-            {
                 try
                 {
                     _textureCtorHook = new Hook(
@@ -188,14 +182,12 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                         new Action<Action<Texture, Device, int, int, int, Usage, Format, Pool>,
                             Texture, Device, int, int, int, Usage, Format, Pool>(TextureCtorDetour)
                     );
-                    if (PluginConfig.EnableDebug)
-                        PluginLog.Info("[D3D9Ex] MonoMod Hook 成功: Texture..ctor");
+                    PluginLog.Debug("[D3D9Ex] MonoMod Hook 成功: Texture..ctor");
                 }
                 catch (Exception ex)
                 {
                     PluginLog.Error("[D3D9Ex] MonoMod Hook 失败: Texture..ctor", ex);
                 }
-            }
 
             var meshCtor = typeof(Mesh).GetConstructor(new[]
             {
@@ -203,7 +195,6 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 typeof(MeshFlags), typeof(VertexFormat), typeof(Pool)
             });
             if (meshCtor != null)
-            {
                 try
                 {
                     _meshCtorHook = new Hook(
@@ -211,14 +202,12 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                         new Action<Action<Mesh, Device, int, int, MeshFlags, VertexFormat, Pool>,
                             Mesh, Device, int, int, MeshFlags, VertexFormat, Pool>(MeshCtorDetour)
                     );
-                    if (PluginConfig.EnableDebug)
-                        PluginLog.Info("[D3D9Ex] MonoMod Hook 成功: Mesh..ctor (带Pool)");
+                    PluginLog.Debug("[D3D9Ex] MonoMod Hook 成功: Mesh..ctor (带Pool)");
                 }
                 catch (Exception ex)
                 {
                     PluginLog.Error("[D3D9Ex] MonoMod Hook 失败: Mesh..ctor (带Pool)", ex);
                 }
-            }
 
             var meshCtorNoPool = typeof(Mesh).GetConstructor(new[]
             {
@@ -226,7 +215,6 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 typeof(MeshFlags), typeof(VertexFormat)
             });
             if (meshCtorNoPool != null)
-            {
                 try
                 {
                     _meshCtorNoPoolHook = new Hook(
@@ -234,14 +222,12 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                         new Action<Action<Mesh, Device, int, int, MeshFlags, VertexFormat>,
                             Mesh, Device, int, int, MeshFlags, VertexFormat>(MeshCtorNoPoolDetour)
                     );
-                    if (PluginConfig.EnableDebug)
-                        PluginLog.Info("[D3D9Ex] MonoMod Hook 成功: Mesh..ctor (无Pool)");
+                    PluginLog.Debug("[D3D9Ex] MonoMod Hook 成功: Mesh..ctor (无Pool)");
                 }
                 catch (Exception ex)
                 {
                     PluginLog.Error("[D3D9Ex] MonoMod Hook 失败: Mesh..ctor (无Pool)", ex);
                 }
-            }
         }
 
         private static void TextureCtorDetour(
@@ -250,10 +236,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
             Device device, int width, int height, int levelCount,
             Usage usage, Format format, Pool pool)
         {
-            if (pool == Pool.Managed)
-            {
-                pool = Pool.Default;
-            }
+            if (pool == Pool.Managed) pool = Pool.Default;
 
             orig(self, device, width, height, levelCount, usage, format, pool);
         }
@@ -265,10 +248,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
             MeshFlags flags, VertexFormat fvf, Pool pool)
         {
             flags = RemoveManagedFlags(flags);
-            if (pool == Pool.Managed)
-            {
-                pool = Pool.Default;
-            }
+            if (pool == Pool.Managed) pool = Pool.Default;
 
             orig(self, device, faceCount, vertexCount, flags, fvf, pool);
         }

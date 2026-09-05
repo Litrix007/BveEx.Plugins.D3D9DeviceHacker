@@ -5,7 +5,9 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("BveEx.Plugins.D3D9DeviceHacker")]
-[assembly: AssemblyDescription("A BVE Trainsim 5.8/6 extension plugin that upgrades the graphics API from Direct3D9 to Direct3D9Ex.")]
+[assembly:
+    AssemblyDescription(
+        "A BVE Trainsim 5.8/6 extension plugin that upgrades the graphics API from Direct3D9 to Direct3D9Ex.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Litrix")]
 [assembly: AssemblyProduct("BveEx.Plugins.D3D9DeviceHacker")]
@@ -31,5 +33,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.1.0.0")]
-[assembly: AssemblyFileVersion("0.1.0.0")]
+[assembly: AssemblyVersion("0.1.1.0")]
+[assembly: AssemblyFileVersion("0.1.1.0")]

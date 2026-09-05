@@ -6,8 +6,8 @@ using SlimDX.Direct3D9;
 namespace BveEx.Plugins.D3D9DeviceHacker.Patches
 {
     /// <summary>
-    /// DXDynamicTexture 靶向按需转换补丁（支持动态刷新与模型属性写回）。
-    /// 将静态 Pool.Default 纹理转存为 Usage.Dynamic + Pool.Default，绕过显存无法直接 Lock 的限制。
+    ///     DXDynamicTexture 靶向按需转换补丁（支持动态刷新与模型属性写回）。
+    ///     将静态 Pool.Default 纹理转存为 Usage.Dynamic + Pool.Default，绕过显存无法直接 Lock 的限制。
     /// </summary>
     public static class DXDynamicTexturePatch
     {
@@ -44,9 +44,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 {
                     var createdDel = (MulticastDelegate)createdField.GetValue(__instance);
                     if (createdDel != null)
-                    {
                         foreach (var handler in createdDel.GetInvocationList())
-                        {
                             try
                             {
                                 handler.Method.Invoke(handler.Target, new[] { __instance, EventArgs.Empty });
@@ -55,8 +53,6 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                             {
                                 // ignored
                             }
-                        }
-                    }
                 }
 
                 __result = texInstance;
@@ -80,10 +76,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                     if (device != null)
                     {
                         var dynamicTex = CreateDynamicCopy(staticTex, device);
-                        if (dynamicTex != null)
-                        {
-                            __args[0] = dynamicTex;
-                        }
+                        if (dynamicTex != null) __args[0] = dynamicTex;
                     }
                 }
             }
@@ -106,10 +99,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                     if (device != null)
                     {
                         var dynamicTex = CreateDynamicCopy(texture, device);
-                        if (dynamicTex != null)
-                        {
-                            texture = dynamicTex;
-                        }
+                        if (dynamicTex != null) texture = dynamicTex;
                     }
                 }
             }
@@ -153,9 +143,8 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                                 if (dynamicTex != null)
                                 {
                                     matInfo.Texture = dynamicTex;
-                                    if (PluginConfig.EnableDebug)
-                                        PluginLog.Info(
-                                            $"[D3D9Ex] 成功将 Model [{textureFileName}] 材质[{i}] 转换为 Dynamic Texture!");
+                                    PluginLog.Debug(
+                                        $"[D3D9Ex] 成功将 Model [{textureFileName}] 材质[{i}] 转换为 Dynamic Texture!");
                                 }
                             }
                         }
@@ -171,8 +160,8 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
         }
 
         /// <summary>
-        /// 将 Pool.Default 静态纹理转存并创建为 Usage.Dynamic + Pool.Default 纹理的核心函数。
-        /// 使用 D3DX (Texture.ToStream) 绕过显存无法直接 Lock 的限制。
+        ///     将 Pool.Default 静态纹理转存并创建为 Usage.Dynamic + Pool.Default 纹理的核心函数。
+        ///     使用 D3DX (Texture.ToStream) 绕过显存无法直接 Lock 的限制。
         /// </summary>
         public static Texture CreateDynamicCopy(Texture staticTex, Device device)
         {

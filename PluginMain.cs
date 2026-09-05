@@ -23,15 +23,19 @@ namespace BveEx.Plugins.D3D9DeviceHacker
 
         public PluginMain(PluginBuilder builder) : base(builder)
         {
-            // 1. 加载配置（失败也用默认值，绝不抛异常）
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            PluginConfig.Load(baseDir);
+            // 配置与日志统一存放在 %LOCALAPPDATA%\BveEx.Plugins.D3D9DeviceHacker
+            var dataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "BveEx.Plugins.D3D9DeviceHacker");
 
-            // 2. 初始化日志（清空旧文件）
-            var logPath = Path.Combine(baseDir, "D3D9DeviceHacker.log");
+            // 1. 加载配置（缺失时自动生成默认配置，失败也用默认值，不抛异常）
+            PluginConfig.Load(dataDir);
+
+            // 2. 初始化日志（按 PID 分文件，避免多实例互斥锁死；Init 内部自带容错）
+            var logPath = Path.Combine(dataDir, "logs", $"D3D9DeviceHacker.{Process.GetCurrentProcess().Id}.log");
             PluginLog.Init(logPath, PluginConfig.LogLevel);
 
-            // 3. 订阅首发异常 —— 部分在 Harmony patch 内部抛出、被吞掉的异常只能靠这里捕获
+            // 3. 订阅首发异常
             AppDomain.CurrentDomain.FirstChanceException += OnFirstChanceException;
 
             // 4. 仅在用户显式请求时弹调试器（生产环境默认 false）
@@ -40,7 +44,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker
 
             PluginLog.Info($"[D3D9Ex] 插件加载: 配置={PluginConfig.ConfigPath}, 日志={logPath}");
             PluginLog.Info(
-                $"[D3D9Ex] 配置: EnableDebug={PluginConfig.EnableDebug}, EnableVSync={PluginConfig.EnableVSync}, "
+                $"[D3D9Ex] 配置: EnableVSync={PluginConfig.EnableVSync}, "
                 + $"MaxFrameLatency={PluginConfig.MaxFrameLatency}, UpgradeToD3D9Ex={PluginConfig.UpgradeToD3D9Ex}");
 
             // 5. 执行 Patch
@@ -51,9 +55,6 @@ namespace BveEx.Plugins.D3D9DeviceHacker
         private static void OnFirstChanceException(object sender, FirstChanceExceptionEventArgs e)
         {
             PluginLog.Error("检测到首发异常: ", e.Exception);
-            if (e.Exception is ArgumentOutOfRangeException)
-            {
-            }
         }
 
         private void ExecuteUpgrade()
@@ -96,10 +97,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker
             {
                 var currentAsms = AppDomain.CurrentDomain.GetAssemblies()
                     .Where(a => a.GetName().Name.Contains("DXDynamicTexture"));
-                foreach (var asm in currentAsms)
-                {
-                    PatchDXDynamicTextureTarget(asm);
-                }
+                foreach (var asm in currentAsms) PatchDXDynamicTextureTarget(asm);
 
                 AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;
             }
@@ -114,10 +112,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker
             try
             {
                 var asmName = args.LoadedAssembly.GetName().Name;
-                if (asmName.Contains("DXDynamicTexture"))
-                {
-                    PatchDXDynamicTextureTarget(args.LoadedAssembly);
-                }
+                if (asmName.Contains("DXDynamicTexture")) PatchDXDynamicTextureTarget(args.LoadedAssembly);
             }
             catch (Exception ex)
             {
@@ -142,11 +137,9 @@ namespace BveEx.Plugins.D3D9DeviceHacker
                     var getOrCreateMethod = handleType.GetMethod("GetOrCreate",
                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                     if (getOrCreateMethod != null)
-                    {
                         _harmony.Patch(getOrCreateMethod,
-                            prefix: new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
+                            new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
                                 nameof(DXDynamicTexturePatch.GetOrCreatePrefix))));
-                    }
 
                     // 2. 拦截 TextureHandle(Texture) 构造函数
                     var texCtors =
@@ -156,11 +149,9 @@ namespace BveEx.Plugins.D3D9DeviceHacker
                     {
                         var parameters = ctor.GetParameters();
                         if (parameters.Length == 1 && parameters[0].ParameterType.Name == "Texture")
-                        {
                             _harmony.Patch(ctor,
-                                prefix: new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
+                                new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
                                     nameof(DXDynamicTexturePatch.TextureHandleCtorPrefix))));
-                        }
                     }
                 }
 
@@ -169,31 +160,24 @@ namespace BveEx.Plugins.D3D9DeviceHacker
                 {
                     var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                     foreach (var method in methods)
-                    {
                         if (method.Name == "Register")
                         {
                             var parameters = method.GetParameters();
                             // Model.Register(Model model, string textureFileName)
                             if (parameters.Length == 2 && parameters[1].ParameterType == typeof(string) &&
                                 parameters[0].ParameterType == typeof(Model))
-                            {
                                 _harmony.Patch(method,
-                                    prefix: new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
+                                    new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
                                         nameof(DXDynamicTexturePatch.ModelRegisterPrefix))));
-                            }
                             // Texture.Register(Texture texture)
                             else if (parameters.Length == 1 && parameters[0].ParameterType.Name == "Texture")
-                            {
                                 _harmony.Patch(method,
-                                    prefix: new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
+                                    new HarmonyMethod(AccessTools.Method(typeof(DXDynamicTexturePatch),
                                         nameof(DXDynamicTexturePatch.TextureRegisterPrefix))));
-                            }
                         }
-                    }
                 }
 
-                if (PluginConfig.EnableDebug)
-                    PluginLog.Info($"[D3D9Ex] 成功部署 DXDT 拦截器到程序集: {assembly.GetName().Name}");
+                PluginLog.Debug($"[D3D9Ex] 成功部署 DXDT 拦截器到程序集: {assembly.GetName().Name}");
             }
             catch (Exception ex)
             {
@@ -218,12 +202,12 @@ namespace BveEx.Plugins.D3D9DeviceHacker
             var initMethod = typeof(d9).GetMethod("a", new[] { typeof(Control), typeof(bool), typeof(Size) });
             if (initMethod != null)
                 _harmony.Patch(initMethod,
-                    prefix: new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.InitPrefix))));
+                    new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.InitPrefix))));
 
             var resetMethod = typeof(d9).GetMethod("h");
             if (resetMethod != null)
                 _harmony.Patch(resetMethod,
-                    prefix: new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.ResetPrefix))));
+                    new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.ResetPrefix))));
         }
 
         private void PatchD9AndFp()
@@ -233,18 +217,18 @@ namespace BveEx.Plugins.D3D9DeviceHacker
             var setDialogBoxModeMethod = typeof(Device).GetMethod("SetDialogBoxMode");
             if (setDialogBoxModeMethod != null)
                 _harmony.Patch(setDialogBoxModeMethod,
-                    prefix: new HarmonyMethod(AccessTools.Method(typeof(D9Patch),
+                    new HarmonyMethod(AccessTools.Method(typeof(D9Patch),
                         nameof(D9Patch.SetDialogBoxModePrefix))));
 
             var fpAMethod = typeof(fp).GetMethod("a", new[] { typeof(RectangleF), typeof(float), typeof(Stream) });
             if (fpAMethod != null)
                 _harmony.Patch(fpAMethod,
-                    prefix: new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.FpAPrefix))));
+                    new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.FpAPrefix))));
 
             var fpAStringMethod = typeof(fp).GetMethod("a", new[] { typeof(string) });
             if (fpAStringMethod != null)
                 _harmony.Patch(fpAStringMethod,
-                    prefix: new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.FpAStringPrefix))));
+                    new HarmonyMethod(AccessTools.Method(typeof(D9Patch), nameof(D9Patch.FpAStringPrefix))));
         }
 
         public override void Dispose()

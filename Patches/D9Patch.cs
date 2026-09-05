@@ -1,45 +1,23 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows.Forms;
-using HarmonyLib;
-using SlimDX;
 using SlimDX.Direct3D9;
 
 namespace BveEx.Plugins.D3D9DeviceHacker.Patches
 {
     /// <summary>
-    /// BveTs 内部 d9（D3D9 包装）与 fp（Mesh/Material 包装）补丁。
-    /// 把 Direct3D9/Device 替换为 Direct3D9Ex/DeviceEx，接管 Reset、SetDialogBoxMode、fp.a 资源构建。
+    ///     BveTs 内部 d9（D3D9 包装）与 fp（Mesh/Material 包装）补丁。
+    ///     把 Direct3D9/Device 替换为 Direct3D9Ex/DeviceEx，接管 Reset、SetDialogBoxMode、fp.a 资源构建。
     /// </summary>
     public static class D9Patch
     {
         [DllImport("user32.dll")]
         private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct RECT
-        {
-            public int Left, Top, Right, Bottom;
-            public int Width => Right - Left;
-            public int Height => Bottom - Top;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct BveVertex
-        {
-            public float X, Y, Z;
-            public float Nx, Ny, Nz;
-            public float U, V;
-            public const VertexFormat Format = VertexFormat.Position | VertexFormat.Normal | VertexFormat.Texture1;
-        }
 
         private static IntPtr ResolveWindowHandle(object handleObj)
         {
@@ -106,7 +84,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
 
                     if (pp.Windowed)
                     {
-                        if (hwnd != IntPtr.Zero && GetClientRect(hwnd, out RECT rect) && rect.Width > 0 &&
+                        if (hwnd != IntPtr.Zero && GetClientRect(hwnd, out var rect) && rect.Width > 0 &&
                             rect.Height > 0)
                         {
                             pp.BackBufferWidth = rect.Width;
@@ -249,7 +227,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 if (pp.Windowed)
                 {
                     var hwnd = pp.DeviceWindowHandle;
-                    if (hwnd != IntPtr.Zero && GetClientRect(hwnd, out RECT rect) && rect.Width > 0 && rect.Height > 0)
+                    if (hwnd != IntPtr.Zero && GetClientRect(hwnd, out var rect) && rect.Width > 0 && rect.Height > 0)
                     {
                         pp.BackBufferWidth = rect.Width;
                         pp.BackBufferHeight = rect.Height;
@@ -291,10 +269,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 else
                 {
                     var coop = device.TestCooperativeLevel();
-                    if (coop != ResultCode.DeviceLost)
-                    {
-                        device.Reset(pp);
-                    }
+                    if (coop != ResultCode.DeviceLost) device.Reset(pp);
                 }
 
                 return false;
@@ -307,7 +282,10 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
             return false;
         }
 
-        public static bool SetDialogBoxModePrefix(Device __instance, bool enableDialogs) => false;
+        public static bool SetDialogBoxModePrefix(Device __instance, bool enableDialogs)
+        {
+            return false;
+        }
 
         public static bool FpAPrefix(ref object __result, RectangleF A_0, float A_1, Stream A_2)
         {
@@ -384,7 +362,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                     var materialD3D = materials[i].MaterialD3D;
                     materialD3D.Ambient = materialD3D.Diffuse;
                     var e0Inst = new e0(materialD3D);
-                    e0Inst.a((double)materialD3D.Diffuse.Alpha < 1.0);
+                    e0Inst.a(materialD3D.Diffuse.Alpha < 1.0);
 
                     if (!string.IsNullOrEmpty(materials[i].TextureFileName))
                     {
@@ -412,9 +390,7 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                     var cloneFlags = (MeshFlags)0;
                     if (loadedMesh.VertexCount > 65535 || loadedMesh.FaceCount > 65535 ||
                         (loadedMesh.CreationOptions & MeshFlags.Use32Bit) != 0)
-                    {
                         cloneFlags |= MeshFlags.Use32Bit;
-                    }
 
                     var clonedMesh = loadedMesh.Clone(device, cloneFlags, newFvf);
 
@@ -437,6 +413,23 @@ namespace BveEx.Plugins.D3D9DeviceHacker.Patches
                 PluginLog.Error("FpAStringPrefix 异常", ex);
                 return true;
             }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left, Top, Right, Bottom;
+            public int Width => Right - Left;
+            public int Height => Bottom - Top;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct BveVertex
+        {
+            public float X, Y, Z;
+            public float Nx, Ny, Nz;
+            public float U, V;
+            public const VertexFormat Format = VertexFormat.Position | VertexFormat.Normal | VertexFormat.Texture1;
         }
     }
 }
